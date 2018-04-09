@@ -1,21 +1,13 @@
 <template>
     <div class="hello">
         <div>
-            <video id="video" style="width: 30%;" autoplay></video>
-            <canvas id="canvas" style="display: none !important;"></canvas>
-            <button id="button" @click="processFile">Capture</button>
+            <button @click="click">Get!</button>
+            <ul>
+                <li v-for="position in positions">{{ position }}</li>
+            </ul>
         </div>
         <hr>
-        <!-- <hr>
-        <div>
-            <input type="file"
-                   @change="processFile($event)"
-                   accept="image/*"
-                   id="archivo"
-                   capture="environment">
-        </div> -->
-        <div>{{ message }}</div>
-        <div v-if="url"><img style="width: 100%;" :src="url" alt=""></div>
+        <div>{{ error }}</div>
     </div>
 </template>
 
@@ -23,112 +15,64 @@
 
 import firebase from '../services/firebase'
 
-function capture(captureButton, image) {
-    const constraints = {
-        video: true
-    };
+const getLocation = (successCb, failCb, multiple) => {
+    const method = multiple ? 'watchPosition' : 'getCurrentPosition';
 
-    const video = document.querySelector('video');
-
-    const canvas = document.createElement('canvas');
-
-    button.onclick = video.onclick = function() {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        // Other browsers will fall back to image/png
-        img.src = canvas.toDataURL('image/webp');
-    };
-
-    function handleSuccess(stream) {
-        video.srcObject = stream;
-    }
-
-    function handleError(error) {
-        alert('rejected!')
-        console.error('Reeeejected!', error);
-    }
-
-    navigator.mediaDevices
-             .getUserMedia(constraints)
-             .then(handleSuccess)
-             .catch(handleError);
+    navigator.geolocation[method]((position) => {
+        successCb({
+            datetime: Date.now(),
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+        })
+    }, (error) => {
+        // error.code can be:
+        //   0: unknown error
+        //   1: permission denied
+        //   2: position unavailable (error response from location provider)
+        //   3: timed out
+        switch (error.code) {
+            case 0:
+                failCb(error)
+                break
+            case 1:
+                failCb(error)
+                break
+            case 2:
+                failCb(error)
+                break
+            case 3:
+                failCb(error)
+                break
+        }
+    }, {
+        // maximumAge: 5 * 60 * 1000,
+        // enableHighAccuracy: true,
+        timeout: 10 * 1000
+    })
 }
-
 
 export default {
     name: 'hello',
     data () {
         return {
-            message: '',
-            url: null
+            error: '',
+            positions: []
         }
     },
     mounted() {
-        const constraints = {
-            video: true
-        };
-
-        function handleSuccess(stream) {
-            video.srcObject = stream;
-        }
-
-        function handleError(error) {
-            alert('rejected!')
-            console.error('Reeeejected!', error);
-        }
-
-        navigator.mediaDevices
-                 .getUserMedia(constraints)
-                 .then(handleSuccess)
-                 .catch(handleError)
+        //
     },
     destroyed () {
-        const tracks = this.mediaStream.getTracks()
-        tracks.map(track => track.stop())
-    }
+        //
+    },
     methods: {
-        processFile() {
-            let component = this
-            let storageRef = this.$root.firebase.storage.ref()
-
-            let name = Math.random().toString(36).replace(/[^a-z0-9]+/g, '').substr(0, 8)
-            let ref = storageRef.child('fotos/' + name + '.jpg')
-
-            const video = document.querySelector('video')
-            const canvas = document.querySelector('canvas')
-
-            this.url = null
-
-            canvas.width = video.videoWidth
-            canvas.height = video.videoHeight
-            canvas.getContext('2d').drawImage(video, 0, 0)
-
-            console.log('pre blob')
-            canvas.toBlob(function(blob) {
-                console.log('soy blob')
-                var image = new Image()
-                image.src = blob
-                var uploadTask = ref.put(blob)
-
-                uploadTask.on('state_changed', function(snapshot) {
-                    var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-                    component.message = 'Upload is ' + progress.toFixed(2) + '% done'
-                    switch (snapshot.state) {
-                        case 'paused':
-                            component.message += ' - Upload is paused'
-                            break
-                        case 'running':
-                            component.message += ' - Upload is running'
-                            break
-                    }
-                }, function(error) {
-                    component.message = 'ERROR: ' + JSON.stringify(error)
-                }, function() {
-                    component.message = ''
-                    component.url = uploadTask.snapshot.downloadURL
-                })
-            })
+        click() {
+            this.position = '...'
+            getLocation((position) => {
+                this.positions.unshift(this.positions.length + ': '+ position.latitude + ', ' + position.longitude)
+            }, (error) => {
+                this.error = 'Error #' + error.code + ': ' + error.message
+            }, true)
         }
     }
 }

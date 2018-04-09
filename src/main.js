@@ -6,7 +6,7 @@ import firebase from './services/firebase'
 
 Vue.use(Vuefire)
 
-Vue.config.productionTip = false
+Vue.config.productionTip = true
 
 /* eslint-disable no-new */
 new Vue({
